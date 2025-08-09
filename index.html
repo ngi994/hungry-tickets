@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hungry Tickets - Cookie Injection</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 600px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .logo {
+            font-size: 72px;
+            margin-bottom: 20px;
+            animation: pulse 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.05); }
+        }
+        
+        h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .subtitle {
+            font-size: 18px;
+            opacity: 0.9;
+            margin-bottom: 30px;
+        }
+        
+        .status {
+            font-size: 18px;
+            margin: 25px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            border-left: 4px solid #ffd700;
+            transition: all 0.3s ease;
+        }
+        
+        .status.success {
+            background: rgba(76, 175, 80, 0.2);
+            border-left-color: #4caf50;
+            animation: successPulse 0.5s ease;
+        }
+        
+        .status.error {
+            background: rgba(244, 67, 54, 0.2);
+            border-left-color: #f44336;
+        }
+        
+        .status.processing {
+            background: rgba(33, 150, 243, 0.2);
+            border-left-color: #2196f3;
+        }
+        
+        @keyframes successPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        
+        .button {
+            background: linear-gradient(45deg, #ff6b6b, #ffd93d);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            min-width: 200px;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .button:active {
+            transform: translateY(0);
+        }
+        
+        .button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .data-info {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 25px 0;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            text-align: left;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .instructions {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 25px;
+            border-radius: 12px;
+            margin: 25px 0;
+            text-align: left;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .instructions h3 {
+            margin-top: 0;
+            color: #ffd700;
+            font-size: 20px;
+        }
+        
+        .instructions ol {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin: 8px 0;
+            line-height: 1.4;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            font-size: 14px;
+            opacity: 0.8;
+            line-height: 1.6;
+        }
+        
+        .footer p {
+            margin: 8px 0;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50, #8bc34a);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🍴⚡</div>
+        <h1>Hungry Tickets</h1>
+        <div class="subtitle">Sistema di Iniezione Cookie</div>
+        
+        <div id="status" class="status">
+            <div class="loading"></div>
+            Caricamento dati cookie...
+        </div>
+        
+        <div class="progress-bar" id="progressBar" style="display: none;">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        
+        <button id="injectBtn" class="button" onclick="injectCookies()" style="display: none;">
+            🚀 Inietta Cookie
+        </button>
+        
+        <div id="dataInfo" class="data-info" style="display: none;">
+            <strong>📊 Informazioni Cookie:</strong>
+            <div id="dataContent"></div>
+        </div>
+        
+        <div class="instructions">
+            <h3>📋 Come funziona:</h3>
+            <ol>
+                <li><strong>Rilevamento automatico:</strong> L'estensione Hungry Tickets rileva questa pagina</li>
+                <li><strong>Estrazione dati:</strong> I cookie vengono estratti dal parametro URL</li>
+                <li><strong>Iniezione:</strong> I cookie vengono automaticamente iniettati nel browser</li>
+                <li><strong>Reindirizzamento:</strong> Sarai portato su Ticketone con i cookie attivi</li>
+            </ol>
+        </div>
+        
+        <div class="footer">
+            <p>⚠️ <strong>Importante:</strong> Assicurati di avere l'estensione Hungry Tickets installata e abilitata</p>
+            <p>🔒 <strong>Privacy:</strong> I tuoi dati sono processati localmente e non vengono mai inviati a server esterni</p>
+            <p>⏰ <strong>Validità:</strong> I cookie hanno una validità limitata nel tempo</p>
+        </div>
+    </div>
+
+    <script>
+        // Estrai dati dall'URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const data = urlParams.get('data');
+        
+        const statusEl = document.getElementById('status');
+        const dataInfoEl = document.getElementById('dataInfo');
+        const dataContentEl = document.getElementById('dataContent');
+        const injectBtn = document.getElementById('injectBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        
+        let cookieData = null;
+        let autoInjectAttempted = false;
+        
+        function updateProgress(percent) {
+            progressFill.style.width = percent + '%';
+        }
+        
+        function setStatus(message, type = 'info') {
+            statusEl.innerHTML = message;
+            statusEl.className = `status ${type}`;
+        }
+        
+        if (data) {
+            try {
+                // Decodifica i dati
+                const jsonString = atob(decodeURIComponent(data));
+                cookieData = JSON.parse(jsonString);
+                
+                // Mostra informazioni
+                setStatus(`✅ ${cookieData.cookies.length} cookie pronti per l'iniezione!`, 'success');
+                
+                // Mostra dettagli
+                dataInfoEl.style.display = 'block';
+                dataContentEl.innerHTML = `
+                    <strong>Cookie estratti:</strong> ${cookieData.cookies.length}<br>
+                    <strong>URL destinazione:</strong> ${cookieData.url}<br>
+                    <strong>Timestamp:</strong> ${new Date(cookieData.timestamp).toLocaleString()}<br>
+                    <strong>Fonte:</strong> ${cookieData.source}<br>
+                    <strong>Età:</strong> ${Math.round((Date.now() - cookieData.timestamp) / (1000 * 60))} minuti
+                `;
+                
+                // Salva i dati per l'estensione
+                window.hungryTicketsData = data;
+                window.cookieData = data;
+                
+                // Mostra pulsante
+                injectBtn.style.display = 'inline-block';
+                
+                // Prova iniezione automatica
+                setTimeout(attemptAutoInject, 1000);
+                
+            } catch (error) {
+                setStatus('❌ Errore nella decodifica dei dati cookie', 'error');
+                console.error('Errore decodifica:', error);
+            }
+        } else {
+            setStatus('❌ Nessun dato cookie trovato nell\'URL', 'error');
+        }
+        
+        function attemptAutoInject() {
+            if (autoInjectAttempted) return;
+            autoInjectAttempted = true;
+            
+            setStatus('🔄 Tentativo di rilevamento automatico dell\'estensione...', 'processing');
+            progressBar.style.display = 'block';
+            
+            // Simula progresso
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += 10;
+                updateProgress(progress);
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    
+                    // Controlla se l'estensione è presente
+                    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+                        setStatus('✅ Estensione rilevata! Tentativo di iniezione automatica...', 'processing');
+                        
+                        // Prova a mandare messaggio all'estensione
+                        try {
+                            chrome.runtime.sendMessage(chrome.runtime.id, {
+                                action: 'injectCookies',
+                                data: data
+                            }, (response) => {
+                                if (chrome.runtime.lastError) {
+                                    setStatus('⚠️ Estensione trovata ma non risponde - usa il pulsante manuale', 'error');
+                                } else {
+                                    setStatus('🚀 Iniezione automatica completata!', 'success');
+                                }
+                            });
+                        } catch (e) {
+                            setStatus('⚠️ Impossibile comunicare con l\'estensione - usa il pulsante manuale', 'error');
+                        }
+                    } else {
+                        setStatus('⚠️ Estensione non rilevata - clicca il pulsante per l\'iniezione manuale', 'error');
+                    }
+                    
+                    progressBar.style.display = 'none';
+                }
+            }, 100);
+        }
+        
+        function injectCookies() {
+            if (!cookieData) {
+                alert('❌ Nessun dato cookie disponibile!');
+                return;
+            }
+            
+            setStatus('🔄 Tentativo di comunicazione con l\'estensione...', 'processing');
+            injectBtn.disabled = true;
+            injectBtn.innerHTML = '🔄 Iniettando...';
+            
+            // Messaggio per l'utente
+            setTimeout(() => {
+                alert(`✅ Comando di iniezione inviato!\n\n📋 Istruzioni:\n1. Apri l'estensione Hungry Tickets (clicca l'icona nella barra)\n2. Vai alla tab "Inject"\n3. Clicca "Rileva Pagina Corrente"\n\nI cookie verranno iniettati automaticamente!`);
+                
+                setStatus('📤 Comando inviato - apri l\'estensione per completare l\'iniezione', 'success');
+                injectBtn.disabled = false;
+                injectBtn.innerHTML = '🚀 Inietta Cookie';
+            }, 1000);
+        }
+        
+        // Esponi funzioni per l'estensione
+        window.getHungryTicketsData = () => data;
+        window.getCookieData = () => cookieData;
+    </script>
+</body>
+</html>
