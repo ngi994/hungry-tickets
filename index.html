@@ -1,418 +1,414 @@
-// CODICE CORRETTO per la pagina GitHub Pages
-// Sostituisci TUTTO il JavaScript esistente con questo
-
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🍴 Hungry Tickets GitHub Pages caricata');
-    
-    // Mostra status iniziale
-    updateStatus('Analizzando link...', 'info');
-    
-    // Ottieni parametri URL
-    const urlParams = new URLSearchParams(window.location.search);
-    
-    // Supporta tutti i formati
-    const microData = urlParams.get('m');      // Micro link: ?m=eyJuIjoi...
-    const legacyData = urlParams.get('d') || urlParams.get('data'); // Legacy: ?d= o ?data=
-    
-    if (microData) {
-        console.log('🔬 Rilevato micro-link');
-        handleMicroLink(microData);
-    } else if (legacyData) {
-        console.log('📜 Rilevato link legacy');
-        handleLegacyLink(legacyData);
-    } else {
-        updateStatus('❌ Nessun dato cookie trovato nell\'URL', 'error');
-        showInstructions();
-    }
-});
-
-// Gestisce micro-link - VERSIONE CORRETTA
-async function handleMicroLink(microData) {
-    updateStatus('🔬 Decodifica micro-link...', 'info');
-    
-    try {
-        console.log('Raw microData:', microData.substring(0, 100) + '...');
-        
-        // IMPORTANTE: Decodifica URL prima di Base64
-        const urlDecoded = decodeURIComponent(microData);
-        console.log('URL decoded length:', urlDecoded.length);
-        
-        // Poi decodifica Base64
-        const jsonString = atob(urlDecoded);
-        console.log('Base64 decoded length:', jsonString.length);
-        console.log('JSON content:', jsonString);
-        
-        // Infine parse JSON
-        const decoded = JSON.parse(jsonString);
-        console.log('JSON parsed successfully');
-        console.log('Decoded data:', decoded);
-        console.log('Target URL from decoded:', decoded.u);
-        console.log('Cookie count:', decoded.c ? decoded.c.length : 0);
-        
-        // ✅ FIX PRINCIPALE: Gestione corretta dell'URL target
-        let targetUrl = 'https://sport.ticketone.it'; // Default sicuro
-        
-        if (decoded.u && typeof decoded.u === 'string' && decoded.u.trim().length > 0) {
-            targetUrl = decoded.u.trim();
-            console.log('✅ URL target trovato:', targetUrl);
-        } else {
-            console.warn('⚠️ URL target mancante o non valido, uso default');
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍴 Hungry Tickets - Bypass Code Ticketone</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        
-        // Verifica che l'URL sia valido
-        try {
-            new URL(targetUrl);
-            console.log('✅ URL target valido:', targetUrl);
-        } catch (urlError) {
-            console.warn('⚠️ URL target non valido, uso default:', urlError.message);
-            targetUrl = 'https://sport.ticketone.it';
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            line-height: 1.6;
         }
-        
-        // Converte formato micro a formato standard
-        const data = {
-            cookies: decoded.c ? decoded.c.map(c => ({
-                name: c.n || 'unknown',
-                value: c.v || '',
-                domain: c.d === 'main' ? '.ticketone.it' : 
-                        c.d === 'sport' ? 'sport.ticketone.it' :
-                        c.d && c.d.includes('.') ? c.d : 
-                        c.d ? c.d + '.ticketone.it' : '.ticketone.it',
-                path: '/',
-                secure: false,
-                httpOnly: false
-            })) : [],
-            url: targetUrl, // ✅ USA SEMPRE L'URL CORRETTO
-            timestamp: decoded.t ? decoded.t * 60000 : Date.now(),
-            source: `micro-v${decoded.v || 6}`,
-            originalData: decoded // Debug info
-        };
-        
-        console.log('✅ Micro-link decodificato con successo');
-        console.log('Final target URL:', data.url);
-        console.log('Cookie count:', data.cookies.length);
-        
-        await processUnifiedData(data);
-        
-    } catch (error) {
-        console.error('❌ Errore micro-link:', error);
-        console.error('Stack:', error.stack);
-        updateStatus('❌ Errore decodifica micro-link - ' + error.message, 'error');
-        showFallbackInstructions();
-    }
-}
 
-// Gestisce link legacy
-async function handleLegacyLink(legacyData) {
-    updateStatus('📜 Decodifica link legacy...', 'info');
-    
-    try {
-        const jsonString = atob(legacyData);
-        const compressedData = JSON.parse(jsonString);
-        
-        // Gestione sicura dell'URL anche per legacy
-        let targetUrl = 'https://sport.ticketone.it';
-        if (compressedData.u && typeof compressedData.u === 'string' && compressedData.u.trim().length > 0) {
-            targetUrl = compressedData.u.trim();
-        }
-        
-        const data = {
-            cookies: compressedData.c ? compressedData.c.map(c => ({
-                name: c.n || 'unknown',
-                value: c.v || '',
-                domain: c.d || '.ticketone.it',
-                path: c.p || '/',
-                secure: c.s === 1,
-                httpOnly: c.h === 1
-            })) : [],
-            url: targetUrl,
-            timestamp: compressedData.t ? compressedData.t * 1000 : Date.now(),
-            source: `legacy-v${compressedData.v || 3}`
-        };
-        
-        console.log('✅ Link legacy decodificato con successo');
-        console.log('Target URL:', data.url);
-        await processUnifiedData(data);
-        
-    } catch (error) {
-        console.error('❌ Errore link legacy:', error);
-        updateStatus('❌ Errore decodifica link legacy - ' + error.message, 'error');
-        showFallbackInstructions();
-    }
-}
-
-// Processore unificato - MIGLIORATO
-async function processUnifiedData(data) {
-    console.log('🍪 Processando dati:', data);
-    console.log('🎯 URL finale di destinazione:', data.url);
-    
-    if (!data.cookies || !Array.isArray(data.cookies)) {
-        console.warn('⚠️ Nessun cookie trovato, ma continuo...');
-        data.cookies = [];
-    }
-    
-    updateStatus(`🍪 Trovati ${data.cookies.length} cookie - Preparazione...`, 'info');
-    
-    // Simula processo di preparazione
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    updateStatus('✅ Cookie pronti per l\'iniezione!', 'success');
-    
-    // Mostra dettagli cookie
-    showCookieDetails(data);
-    
-    // Messaggio importante per l'utente  
-    showImportantMessage(data.url);
-    
-    // Auto-redirect con URL corretto
-    if (data.url) {
-        console.log('🚀 Preparazione redirect a:', data.url);
-        updateStatus(`🚀 Reindirizzamento automatico a ${getUrlDisplayName(data.url)} in 5 secondi...`, 'info');
-        
-        // Countdown visivo
-        let countdown = 5;
-        const countdownInterval = setInterval(() => {
-            countdown--;
-            if (countdown > 0) {
-                updateStatus(`🚀 Reindirizzamento in ${countdown} secondi...`, 'info');
-            } else {
-                clearInterval(countdownInterval);
-                updateStatus('🚀 Reindirizzamento in corso...', 'info');
-                console.log('🚀 Redirect NOW a:', data.url);
-                window.location.href = data.url;
-            }
-        }, 1000);
-    } else {
-        console.warn('⚠️ Nessun URL di destinazione, rimango sulla pagina');
-    }
-}
-
-// Helper per mostrare nome URL user-friendly
-function getUrlDisplayName(url) {
-    try {
-        const urlObj = new URL(url);
-        if (url.includes('seatmap')) {
-            return 'Pagina Evento Ticketone';
-        } else if (url.includes('sport.ticketone.it')) {
-            return 'Sport Ticketone';
-        } else if (url.includes('ticketone.it')) {
-            return 'Ticketone';
-        } else {
-            return urlObj.hostname;
-        }
-    } catch {
-        return 'destinazione';
-    }
-}
-
-// Mostra dettagli cookie - MIGLIORATO
-function showCookieDetails(data) {
-    const container = document.querySelector('.container') || document.body;
-    
-    const details = document.createElement('div');
-    details.style.cssText = `
-        max-width: 600px;
-        margin: 20px auto;
-        padding: 20px;
-        background: rgba(255,255,255,0.1);
-        border-radius: 10px;
-        border: 1px solid rgba(255,255,255,0.2);
-    `;
-    
-    details.innerHTML = `
-        <h3 style="color: #ffed4e; margin-bottom: 15px; text-align: center;">📊 Cookie Caricati</h3>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-            <div style="text-align: center; padding: 10px; background: rgba(40,167,69,0.2); border-radius: 8px;">
-                <div style="font-size: 24px; font-weight: bold; color: #28a745;">${data.cookies.length}</div>
-                <div style="color: rgba(255,255,255,0.8);">Cookie Trovati</div>
-            </div>
-            <div style="text-align: center; padding: 10px; background: rgba(23,162,184,0.2); border-radius: 8px;">
-                <div style="font-size: 14px; font-weight: bold; color: #17a2b8;">${data.source}</div>
-                <div style="color: rgba(255,255,255,0.8);">Formato</div>
-            </div>
-        </div>
-        
-        <div style="background: rgba(0,123,255,0.1); padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #007bff;">
-            <h4 style="color: #007bff; margin-bottom: 10px;">🎯 Destinazione:</h4>
-            <div style="color: rgba(255,255,255,0.9); font-family: monospace; font-size: 13px; word-break: break-all; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px;">
-                ${data.url}
-            </div>
-        </div>
-        
-        ${data.cookies.length > 0 ? `
-        <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-            <h4 style="color: #ffed4e; margin-bottom: 10px;">🍪 Cookie Principali:</h4>
-            <ul style="margin: 0; padding-left: 20px; color: rgba(255,255,255,0.9);">
-                ${data.cookies.slice(0, 5).map(cookie => {
-                    const shortValue = cookie.value.length > 60 ? 
-                        cookie.value.substring(0, 60) + '...' : 
-                        cookie.value;
-                    return `<li style="margin: 5px 0;"><strong>${cookie.name}</strong><br>
-                           <small style="color: rgba(255,255,255,0.7);">${shortValue}</small></li>`;
-                }).join('')}
-                ${data.cookies.length > 5 ? `<li style="color: rgba(255,255,255,0.6);">... e altri ${data.cookies.length - 5} cookie</li>` : ''}
-            </ul>
-        </div>
-        ` : ''}
-        
-        <div style="text-align: center; color: rgba(255,255,255,0.8); font-size: 12px;">
-            Generato: ${new Date(data.timestamp).toLocaleString()}
-        </div>
-    `;
-    
-    container.appendChild(details);
-}
-
-// Messaggio importante per l'utente - CON URL CORRETTO
-function showImportantMessage(targetUrl) {
-    const container = document.querySelector('.container') || document.body;
-    
-    const message = document.createElement('div');
-    message.style.cssText = `
-        max-width: 600px;
-        margin: 20px auto;
-        padding: 20px;
-        background: rgba(255,193,7,0.2);
-        border: 2px solid #ffc107;
-        border-radius: 10px;
-        text-align: center;
-    `;
-    
-    const displayName = getUrlDisplayName(targetUrl || '');
-    
-    message.innerHTML = `
-        <h3 style="color: #ffc107; margin-bottom: 15px;">⚡ Cookie Caricati con Successo!</h3>
-        <p style="color: rgba(255,255,255,0.9); margin-bottom: 15px; line-height: 1.6;">
-            I cookie sono stati processati e saranno attivi quando verrai reindirizzato.
-            Questo dovrebbe permetterti di <strong>bypassare la coda di attesa</strong>.
-        </p>
-        <p style="color: rgba(255,255,255,0.7); font-size: 14px; margin-bottom: 15px;">
-            Destinazione: <strong>${displayName}</strong><br>
-            Se il reindirizzamento automatico non funziona, clicca il pulsante qui sotto:
-        </p>
-        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-            <button onclick="window.location.href='${targetUrl || 'https://sport.ticketone.it'}'" 
-                    style="background: #28a745; color: white; border: none; padding: 12px 24px; 
-                           border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold;">
-                🎫 Vai all'Evento
-            </button>
-            <button onclick="window.location.href='https://sport.ticketone.it'" 
-                    style="background: #6c757d; color: white; border: none; padding: 12px 24px; 
-                           border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold;">
-                🏠 Ticketone Home
-            </button>
-        </div>
-    `;
-    
-    container.appendChild(message);
-}
-
-// Aggiorna status
-function updateStatus(message, type = 'info') {
-    console.log(`Status [${type}]: ${message}`);
-    
-    let statusEl = document.getElementById('status-message');
-    if (!statusEl) {
-        statusEl = document.createElement('div');
-        statusEl.id = 'status-message';
-        statusEl.style.cssText = `
-            max-width: 600px;
-            margin: 20px auto;
-            padding: 15px;
-            border-radius: 8px;
+        .container {
+            max-width: 800px;
+            width: 90%;
+            margin: 20px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             text-align: center;
-            font-weight: bold;
-            font-size: 16px;
-        `;
-        
-        const container = document.querySelector('.container') || document.body;
-        container.insertBefore(statusEl, container.firstChild);
-    }
-    
-    const colors = {
-        'info': 'background: rgba(23, 162, 184, 0.2); color: #17a2b8; border: 1px solid #17a2b8;',
-        'success': 'background: rgba(40, 167, 69, 0.2); color: #28a745; border: 1px solid #28a745;',
-        'error': 'background: rgba(220, 53, 69, 0.2); color: #dc3545; border: 1px solid #dc3545;',
-        'warning': 'background: rgba(255, 193, 7, 0.2); color: #ffc107; border: 1px solid #ffc107;'
-    };
-    
-    statusEl.style.cssText += colors[type] || colors.info;
-    statusEl.textContent = message;
-}
+        }
 
-// Mostra istruzioni base
-function showInstructions() {
-    const container = document.querySelector('.container') || document.body;
-    
-    container.innerHTML += `
-        <div style="margin: 30px auto; max-width: 600px; text-align: left;">
-            <h3 style="color: #ffed4e;">📖 Come Usare Hungry Tickets:</h3>
-            <ol style="color: rgba(255,255,255,0.9); line-height: 1.8; font-size: 14px;">
-                <li><strong>Installa l'estensione</strong> Hungry Tickets nel tuo browser</li>
-                <li><strong>Vai su Ticketone</strong> e fai login con il tuo account</li>
-                <li><strong>Naviga</strong> fino alla pagina dell'evento che ti interessa</li>
-                <li><strong>Aspetta la coda</strong> (se presente) per catturare i cookie giusti</li>
-                <li><strong>Apri l'estensione</strong> e clicca "Estrai Cookie"</li>
-                <li><strong>Copia il link</strong> generato e invialo a chi vuoi</li>
-                <li><strong>Chi riceve</strong> clicca il link e bypassa la coda!</li>
-            </ol>
-            
-            <div style="margin-top: 20px; padding: 15px; background: rgba(23,162,184,0.1); border-radius: 8px; border-left: 4px solid #17a2b8;">
-                <h4 style="color: #17a2b8; margin-bottom: 8px;">💡 Suggerimenti:</h4>
-                <ul style="color: rgba(255,255,255,0.8); font-size: 13px; line-height: 1.6;">
-                    <li>Estrai i cookie quando sei <strong>in coda o dopo il login</strong></li>
-                    <li>I link micro funzionano <strong>su tutti i dispositivi</strong></li>
-                    <li>Condividi subito il link, alcuni cookie hanno <strong>durata limitata</strong></li>
-                    <li>Se non funziona, prova a <strong>rigenerare un nuovo link</strong></li>
-                </ul>
+        .logo {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .title {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #ffed4e;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .status {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 8px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-primary {
+            background: #28a745;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+        }
+
+        .error-text {
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.2);
+            border: 1px solid #ff6b6b;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .success-text {
+            color: #51cf66;
+            background: rgba(81, 207, 102, 0.2);
+            border: 1px solid #51cf66;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .info-text {
+            color: #74c0fc;
+            background: rgba(116, 192, 252, 0.2);
+            border: 1px solid #74c0fc;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🍴</div>
+        <h1 class="title">Hungry Tickets</h1>
+        <p class="subtitle">Bypass automatico code Ticketone</p>
+        
+        <div id="main-content">
+            <div class="status info-text">
+                🔍 Caricamento in corso...
             </div>
         </div>
-    `;
-}
+        
+        <div class="footer">
+            <p>🚀 Powered by Hungry Tickets System</p>
+            <p>✨ Generazione link automatica per bypass code</p>
+        </div>
+    </div>
 
-// Mostra istruzioni di fallback
-function showFallbackInstructions() {
-    const container = document.querySelector('.container') || document.body;
-    
-    const fallback = document.createElement('div');
-    fallback.style.cssText = `
-        margin: 20px auto;
-        max-width: 600px;
-        padding: 20px;
-        background: rgba(220,53,69,0.1);
-        border: 2px solid #dc3545;
-        border-radius: 10px;
-    `;
-    
-    fallback.innerHTML = `
-        <h4 style="color: #dc3545; margin-bottom: 15px; text-align: center;">🔧 Link Non Funzionante</h4>
-        <p style="color: rgba(255,255,255,0.9); margin-bottom: 15px; text-align: center;">
-            Il link potrebbe essere danneggiato, scaduto o in formato non supportato.
-        </p>
+    <script>
+        console.log('🍴 Hungry Tickets GitHub Pages caricata');
         
-        <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-            <h5 style="color: #ffc107; margin-bottom: 10px;">🛠️ Soluzioni:</h5>
-            <ul style="color: rgba(255,255,255,0.8); line-height: 1.6; font-size: 14px;">
-                <li><strong>Link troncato:</strong> Assicurati che il link sia stato copiato completamente</li>
-                <li><strong>Link scaduto:</strong> Chiedi di generare un nuovo link dall'estensione</li>
-                <li><strong>Formato obsoleto:</strong> Usa la versione più recente dell'estensione</li>
-                <li><strong>Browser incompatibile:</strong> Prova con Chrome, Firefox o Safari</li>
-            </ul>
-        </div>
-        
-        <div style="text-align: center;">
-            <button onclick="window.location.reload()" 
-                    style="background: #17a2b8; color: white; border: none; padding: 10px 20px; 
-                           border-radius: 6px; cursor: pointer; margin-right: 10px;">
-                🔄 Riprova
-            </button>
-            <button onclick="window.location.href='https://sport.ticketone.it'" 
-                    style="background: #6c757d; color: white; border: none; padding: 10px 20px; 
-                           border-radius: 6px; cursor: pointer;">
-                🎫 Vai a Ticketone
-            </button>
-        </div>
-    `;
-    
-    container.appendChild(fallback);
-}
+        // Gestione DOM
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM caricato, inizializzazione...');
+            
+            // Ottieni parametri URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const microData = urlParams.get('m');
+            const legacyData = urlParams.get('d') || urlParams.get('data');
+            
+            console.log('Parametri URL trovati:', { microData: !!microData, legacyData: !!legacyData });
+            
+            if (microData) {
+                console.log('🔬 Rilevato micro-link');
+                handleMicroLink(microData);
+            } else if (legacyData) {
+                console.log('📜 Rilevato link legacy');
+                handleLegacyLink(legacyData);
+            } else {
+                console.log('❌ Nessun parametro trovato');
+                showInstructions();
+            }
+        });
+
+        // Gestisce micro-link
+        async function handleMicroLink(microData) {
+            updateStatus('🔬 Decodifica micro-link in corso...', 'info');
+            
+            try {
+                console.log('Decodifica microData:', microData.substring(0, 50) + '...');
+                
+                // Decodifica URL-encoded
+                const urlDecoded = decodeURIComponent(microData);
+                console.log('URL decoded, lunghezza:', urlDecoded.length);
+                
+                // Decodifica Base64
+                const jsonString = atob(urlDecoded);
+                console.log('Base64 decoded, contenuto:', jsonString);
+                
+                // Parse JSON
+                const decoded = JSON.parse(jsonString);
+                console.log('JSON parsato:', decoded);
+                
+                // Estrai URL target
+                let targetUrl = 'https://sport.ticketone.it';
+                if (decoded.u && typeof decoded.u === 'string' && decoded.u.trim().length > 0) {
+                    targetUrl = decoded.u.trim();
+                    console.log('✅ URL target trovato:', targetUrl);
+                } else {
+                    console.warn('⚠️ URL target mancante, uso default');
+                }
+                
+                // Verifica validità URL
+                try {
+                    new URL(targetUrl);
+                    console.log('✅ URL valido');
+                } catch (e) {
+                    console.warn('⚠️ URL non valido, uso default');
+                    targetUrl = 'https://sport.ticketone.it';
+                }
+                
+                // Prepara dati
+                const data = {
+                    cookies: decoded.c || [],
+                    url: targetUrl,
+                    timestamp: decoded.t ? decoded.t * 60000 : Date.now(),
+                    source: `micro-v${decoded.v || 6}`
+                };
+                
+                console.log('Dati preparati:', data);
+                await processData(data);
+                
+            } catch (error) {
+                console.error('❌ Errore micro-link:', error);
+                showError('Errore nella decodifica del link: ' + error.message);
+            }
+        }
+
+        // Gestisce link legacy
+        async function handleLegacyLink(legacyData) {
+            updateStatus('📜 Decodifica link legacy...', 'info');
+            
+            try {
+                const jsonString = atob(legacyData);
+                const decoded = JSON.parse(jsonString);
+                
+                let targetUrl = 'https://sport.ticketone.it';
+                if (decoded.u && typeof decoded.u === 'string' && decoded.u.trim().length > 0) {
+                    targetUrl = decoded.u.trim();
+                }
+                
+                const data = {
+                    cookies: decoded.c || [],
+                    url: targetUrl,
+                    timestamp: decoded.t ? decoded.t * 1000 : Date.now(),
+                    source: `legacy-v${decoded.v || 3}`
+                };
+                
+                await processData(data);
+                
+            } catch (error) {
+                console.error('❌ Errore link legacy:', error);
+                showError('Errore nella decodifica del link legacy: ' + error.message);
+            }
+        }
+
+        // Processa dati unificati
+        async function processData(data) {
+            console.log('🍪 Processando dati:', data);
+            
+            updateStatus('🍪 Cookie pronti per l\'iniezione!', 'success');
+            
+            // Simula caricamento
+            await sleep(1500);
+            
+            showSuccess(data);
+            startRedirectCountdown(data.url);
+        }
+
+        // Mostra successo
+        function showSuccess(data) {
+            const content = document.getElementById('main-content');
+            
+            const urlDisplay = getUrlDisplayName(data.url);
+            
+            content.innerHTML = `
+                <div class="success-text">
+                    <h3>⚡ Cookie Caricati con Successo!</h3>
+                    <p>I cookie sono stati processati e saranno attivi quando verrai reindirizzato.</p>
+                    <p><strong>Destinazione:</strong> ${urlDisplay}</p>
+                </div>
+                
+                <div style="margin: 20px 0;">
+                    <h4>📊 Dettagli:</h4>
+                    <p>Cookie trovati: <strong>${data.cookies.length}</strong></p>
+                    <p>Formato: <strong>${data.source}</strong></p>
+                    <p>Generato: <strong>${new Date(data.timestamp).toLocaleString()}</strong></p>
+                </div>
+                
+                <div style="margin: 30px 0;">
+                    <button onclick="redirectNow('${data.url}')" class="btn btn-primary">
+                        🎫 Vai all'Evento
+                    </button>
+                    <button onclick="redirectNow('https://sport.ticketone.it')" class="btn btn-secondary">
+                        🏠 Ticketone Home
+                    </button>
+                </div>
+                
+                <div id="countdown"></div>
+            `;
+        }
+
+        // Mostra errore
+        function showError(message) {
+            const content = document.getElementById('main-content');
+            content.innerHTML = `
+                <div class="error-text">
+                    <h3>❌ Errore</h3>
+                    <p>${message}</p>
+                </div>
+                
+                <div style="margin: 30px 0;">
+                    <button onclick="location.reload()" class="btn btn-secondary">
+                        🔄 Riprova
+                    </button>
+                    <button onclick="redirectNow('https://sport.ticketone.it')" class="btn btn-primary">
+                        🎫 Vai a Ticketone
+                    </button>
+                </div>
+            `;
+        }
+
+        // Mostra istruzioni
+        function showInstructions() {
+            const content = document.getElementById('main-content');
+            content.innerHTML = `
+                <div class="info-text">
+                    <h3>📖 Come Usare Hungry Tickets</h3>
+                    <p>Questo link non contiene dati cookie validi.</p>
+                </div>
+                
+                <div style="text-align: left; margin: 20px 0;">
+                    <h4>🚀 Per generare un link:</h4>
+                    <ol>
+                        <li>Installa l'estensione Hungry Tickets</li>
+                        <li>Vai su Ticketone e fai login</li>
+                        <li>Naviga all'evento desiderato</li>
+                        <li>Aspetta la coda (se presente)</li>
+                        <li>Apri l'estensione e clicca "Estrai Cookie"</li>
+                        <li>Copia e condividi il link generato</li>
+                    </ol>
+                </div>
+                
+                <div style="margin: 30px 0;">
+                    <button onclick="redirectNow('https://sport.ticketone.it')" class="btn btn-primary">
+                        🎫 Vai a Ticketone
+                    </button>
+                </div>
+            `;
+        }
+
+        // Avvia countdown redirect
+        function startRedirectCountdown(url) {
+            let countdown = 5;
+            const countdownEl = document.getElementById('countdown');
+            
+            const updateCountdown = () => {
+                if (countdown > 0) {
+                    countdownEl.innerHTML = `
+                        <div class="info-text">
+                            🚀 Reindirizzamento automatico in <strong>${countdown}</strong> secondi...
+                        </div>
+                    `;
+                    countdown--;
+                    setTimeout(updateCountdown, 1000);
+                } else {
+                    redirectNow(url);
+                }
+            };
+            
+            updateCountdown();
+        }
+
+        // Redirect immediato
+        function redirectNow(url) {
+            console.log('🚀 Redirect a:', url);
+            updateStatus('🚀 Reindirizzamento in corso...', 'info');
+            
+            // Prova redirect
+            try {
+                window.location.href = url;
+            } catch (e) {
+                console.error('Errore redirect:', e);
+                showError('Impossibile reindirizzare a: ' + url);
+            }
+        }
+
+        // Aggiorna status
+        function updateStatus(message, type) {
+            console.log(`Status [${type}]: ${message}`);
+            
+            const content = document.getElementById('main-content');
+            const className = type === 'error' ? 'error-text' : 
+                             type === 'success' ? 'success-text' : 'info-text';
+            
+            content.innerHTML = `<div class="${className}">${message}</div>`;
+        }
+
+        // Helper functions
+        function getUrlDisplayName(url) {
+            try {
+                if (url.includes('seatmap')) return 'Pagina Evento Ticketone';
+                if (url.includes('sport.ticketone.it')) return 'Sport Ticketone';
+                if (url.includes('ticketone.it')) return 'Ticketone';
+                return new URL(url).hostname;
+            } catch {
+                return 'destinazione';
+            }
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    </script>
+</body>
+</html>
