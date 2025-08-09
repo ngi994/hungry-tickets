@@ -1,28 +1,20 @@
-// Codice da aggiungere alla tua pagina GitHub Pages (index.html)
-// Sostituisci o aggiorna il JavaScript esistente con questo
+// CODICE CORRETTO per la pagina GitHub Pages
+// Sostituisci TUTTO il JavaScript esistente con questo
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🍴 Hungry Tickets GitHub Pages caricata');
     
+    // Mostra status iniziale
+    updateStatus('Analizzando link...', 'info');
+    
     // Ottieni parametri URL
     const urlParams = new URLSearchParams(window.location.search);
     
-    // Supporta tutti i formati di link
-    const serviceId = urlParams.get('p');      // Servizio esterno: ?p=abc123
-    const hashId = urlParams.get('h');         // Hash locale: ?h=x7k9m2n1  
+    // Supporta tutti i formati
     const microData = urlParams.get('m');      // Micro link: ?m=eyJuIjoi...
     const legacyData = urlParams.get('d') || urlParams.get('data'); // Legacy: ?d= o ?data=
     
-    // Mostra stato iniziale
-    updateStatus('Analizzando tipo di link...', 'info');
-    
-    if (serviceId) {
-        console.log('🌐 Rilevato link servizio esterno');
-        handleServiceLink(serviceId);
-    } else if (hashId) {
-        console.log('🔗 Rilevato link hash locale');
-        handleHashLink(hashId);
-    } else if (microData) {
+    if (microData) {
         console.log('🔬 Rilevato micro-link');
         handleMicroLink(microData);
     } else if (legacyData) {
@@ -34,98 +26,40 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Gestisce link da servizio esterno (dpaste.com)
-async function handleServiceLink(serviceId) {
-    updateStatus('🌐 Caricamento da servizio esterno...', 'info');
-    
-    try {
-        // Prova diverse varianti URL per dpaste
-        const urls = [
-            `https://dpaste.com/${serviceId}.txt`,
-            `https://dpaste.com/${serviceId}/raw`,
-            `https://dpaste.com/${serviceId}`
-        ];
-        
-        let data = null;
-        
-        for (const url of urls) {
-            try {
-                console.log(`Tentativo caricamento: ${url}`);
-                const response = await fetch(url);
-                
-                if (response.ok) {
-                    const text = await response.text();
-                    console.log('Risposta ricevuta:', text.substring(0, 100) + '...');
-                    
-                    // Prova a parsare come JSON
-                    try {
-                        data = JSON.parse(text);
-                        console.log('✅ Dati JSON caricati con successo');
-                        break;
-                    } catch (e) {
-                        console.log('Non è JSON valido, provo URL successivo...');
-                    }
-                }
-            } catch (e) {
-                console.log(`Errore caricamento ${url}:`, e.message);
-            }
-        }
-        
-        if (data) {
-            await processUnifiedData(data);
-        } else {
-            throw new Error('Impossibile caricare i dati dal servizio esterno');
-        }
-        
-    } catch (error) {
-        console.error('❌ Errore servizio esterno:', error);
-        updateStatus('❌ Errore caricamento servizio - link scaduto o non valido', 'error');
-        showFallbackInstructions();
-    }
-}
-
-// Gestisce link hash locale
-async function handleHashLink(hashId) {
-    updateStatus('🔗 Caricamento da hash locale...', 'info');
-    
-    try {
-        const dataString = localStorage.getItem(`ht_${hashId}`);
-        
-        if (dataString) {
-            const data = JSON.parse(dataString);
-            console.log('✅ Dati hash caricati da localStorage');
-            await processUnifiedData(data);
-        } else {
-            throw new Error('Hash non trovato in localStorage');
-        }
-        
-    } catch (error) {
-        console.error('❌ Errore hash locale:', error);
-        updateStatus('❌ Hash non trovato - rigenera il link dall\'estensione', 'error');
-        showFallbackInstructions();
-    }
-}
-
-// Gestisce micro-link
+// Gestisce micro-link - VERSIONE CORRETTA
 async function handleMicroLink(microData) {
     updateStatus('🔬 Decodifica micro-link...', 'info');
     
     try {
-        const decoded = JSON.parse(atob(microData));
-        console.log('Micro-dati decodificati:', decoded);
+        console.log('Raw microData:', microData.substring(0, 100) + '...');
         
+        // IMPORTANTE: Decodifica URL prima di Base64
+        const urlDecoded = decodeURIComponent(microData);
+        console.log('URL decoded length:', urlDecoded.length);
+        
+        // Poi decodifica Base64
+        const jsonString = atob(urlDecoded);
+        console.log('Base64 decoded length:', jsonString.length);
+        
+        // Infine parse JSON
+        const decoded = JSON.parse(jsonString);
+        console.log('JSON parsed, cookie count:', decoded.c.length);
+        
+        // Converte formato micro a formato standard
         const data = {
-            cookies: [{
-                name: decoded.n,
-                value: decoded.v,
-                domain: decoded.d.includes('.') ? decoded.d : '.ticketone.it',
+            cookies: decoded.c.map(c => ({
+                name: c.n,
+                value: c.v,
+                domain: c.d === 'main' ? '.ticketone.it' : 
+                        c.d === 'sport' ? 'sport.ticketone.it' :
+                        c.d.includes('.') ? c.d : c.d + '.ticketone.it',
                 path: '/',
                 secure: false,
                 httpOnly: false
-            }],
-            url: 'https://sport.ticketone.it',
-            timestamp: decoded.t * 60000,
-            source: 'micro-link'
+            })),
+            url: decoded.u || 'https://sport.ticketone.it',
+            timestamp: decoded.t ? decoded.t * 60000 : Date.now(),
+            source: `micro-v${decoded.v || 5}`
         };
         
         console.log('✅ Micro-link decodificato con successo');
@@ -133,12 +67,12 @@ async function handleMicroLink(microData) {
         
     } catch (error) {
         console.error('❌ Errore micro-link:', error);
-        updateStatus('❌ Errore decodifica micro-link - formato non valido', 'error');
+        updateStatus('❌ Errore decodifica micro-link - ' + error.message, 'error');
         showFallbackInstructions();
     }
 }
 
-// Gestisce link legacy (formato originale)
+// Gestisce link legacy
 async function handleLegacyLink(legacyData) {
     updateStatus('📜 Decodifica link legacy...', 'info');
     
@@ -146,7 +80,6 @@ async function handleLegacyLink(legacyData) {
         const jsonString = atob(legacyData);
         const compressedData = JSON.parse(jsonString);
         
-        // Converte formato legacy a formato unificato
         const data = {
             cookies: compressedData.c.map(c => ({
                 name: c.n,
@@ -157,7 +90,7 @@ async function handleLegacyLink(legacyData) {
                 httpOnly: c.h === 1
             })),
             url: compressedData.u,
-            timestamp: compressedData.t,
+            timestamp: compressedData.t * 1000,
             source: `legacy-v${compressedData.v || 3}`
         };
         
@@ -166,104 +99,157 @@ async function handleLegacyLink(legacyData) {
         
     } catch (error) {
         console.error('❌ Errore link legacy:', error);
-        updateStatus('❌ Errore decodifica link legacy', 'error');
+        updateStatus('❌ Errore decodifica link legacy - ' + error.message, 'error');
         showFallbackInstructions();
     }
 }
 
-// Processore unificato per tutti i formati
+// Processore unificato
 async function processUnifiedData(data) {
-    console.log('🍪 Processando dati unificati:', data);
+    console.log('🍪 Processando dati:', data);
     
     if (!data.cookies || !Array.isArray(data.cookies)) {
         throw new Error('Formato dati non valido');
     }
     
-    updateStatus(`🍪 Trovati ${data.cookies.length} cookie - Preparazione iniezione...`, 'info');
+    updateStatus(`🍪 Trovati ${data.cookies.length} cookie - Preparazione...`, 'info');
     
-    // Simula il processo di iniezione (la logica reale è nell'estensione)
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Simula processo di preparazione
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
     updateStatus('✅ Cookie pronti per l\'iniezione!', 'success');
     
-    // Mostra dettagli
+    // Mostra dettagli cookie
     showCookieDetails(data);
+    
+    // Messaggio importante per l'utente
+    showImportantMessage();
     
     // Auto-redirect se presente URL
     if (data.url) {
-        updateStatus('🚀 Reindirizzamento a Ticketone in 3 secondi...', 'info');
-        setTimeout(() => {
-            window.location.href = data.url;
-        }, 3000);
+        updateStatus('🚀 Reindirizzamento automatico in 5 secondi...', 'info');
+        
+        // Countdown visivo
+        let countdown = 5;
+        const countdownInterval = setInterval(() => {
+            countdown--;
+            if (countdown > 0) {
+                updateStatus(`🚀 Reindirizzamento in ${countdown} secondi...`, 'info');
+            } else {
+                clearInterval(countdownInterval);
+                updateStatus('🚀 Reindirizzamento in corso...', 'info');
+                window.location.href = data.url;
+            }
+        }, 1000);
     }
 }
 
 // Mostra dettagli cookie
 function showCookieDetails(data) {
-    const details = document.getElementById('cookie-details') || createDetailsElement();
+    const container = document.querySelector('.container') || document.body;
     
-    let html = `
-        <div style="margin: 20px 0; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px;">
-            <h3 style="color: #ffed4e; margin-bottom: 10px;">📊 Dettagli Cookie</h3>
-            <p><strong>Cookie trovati:</strong> ${data.cookies.length}</p>
-            <p><strong>Timestamp:</strong> ${new Date(data.timestamp).toLocaleString()}</p>
-            <p><strong>Fonte:</strong> ${data.source || 'sconosciuta'}</p>
-            
-            <div style="margin-top: 15px;">
-                <h4 style="color: #ffed4e;">Cookie:</h4>
-                <ul style="margin: 5px 0; padding-left: 20px;">
+    const details = document.createElement('div');
+    details.style.cssText = `
+        max-width: 600px;
+        margin: 20px auto;
+        padding: 20px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.2);
     `;
     
-    data.cookies.forEach(cookie => {
-        const shortValue = cookie.value.length > 50 ? 
-            cookie.value.substring(0, 50) + '...' : 
-            cookie.value;
-        html += `<li><strong>${cookie.name}:</strong> ${shortValue}</li>`;
-    });
-    
-    html += `
-                </ul>
+    details.innerHTML = `
+        <h3 style="color: #ffed4e; margin-bottom: 15px; text-align: center;">📊 Cookie Caricati</h3>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+            <div style="text-align: center; padding: 10px; background: rgba(40,167,69,0.2); border-radius: 8px;">
+                <div style="font-size: 24px; font-weight: bold; color: #28a745;">${data.cookies.length}</div>
+                <div style="color: rgba(255,255,255,0.8);">Cookie Trovati</div>
             </div>
+            <div style="text-align: center; padding: 10px; background: rgba(23,162,184,0.2); border-radius: 8px;">
+                <div style="font-size: 14px; font-weight: bold; color: #17a2b8;">${data.source}</div>
+                <div style="color: rgba(255,255,255,0.8);">Formato</div>
+            </div>
+        </div>
+        
+        <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <h4 style="color: #ffed4e; margin-bottom: 10px;">🍪 Cookie Principali:</h4>
+            <ul style="margin: 0; padding-left: 20px; color: rgba(255,255,255,0.9);">
+                ${data.cookies.slice(0, 5).map(cookie => {
+                    const shortValue = cookie.value.length > 60 ? 
+                        cookie.value.substring(0, 60) + '...' : 
+                        cookie.value;
+                    return `<li style="margin: 5px 0;"><strong>${cookie.name}</strong><br>
+                           <small style="color: rgba(255,255,255,0.7);">${shortValue}</small></li>`;
+                }).join('')}
+                ${data.cookies.length > 5 ? `<li style="color: rgba(255,255,255,0.6);">... e altri ${data.cookies.length - 5} cookie</li>` : ''}
+            </ul>
+        </div>
+        
+        <div style="text-align: center; color: rgba(255,255,255,0.8); font-size: 12px;">
+            Generato: ${new Date(data.timestamp).toLocaleString()}
         </div>
     `;
     
-    details.innerHTML = html;
-}
-
-// Crea elemento dettagli se non esiste
-function createDetailsElement() {
-    const details = document.createElement('div');
-    details.id = 'cookie-details';
-    details.style.maxWidth = '600px';
-    details.style.margin = '0 auto';
-    
-    const container = document.querySelector('.container') || document.body;
     container.appendChild(details);
-    
-    return details;
 }
 
-// Aggiorna status nella pagina
+// Messaggio importante per l'utente
+function showImportantMessage() {
+    const container = document.querySelector('.container') || document.body;
+    
+    const message = document.createElement('div');
+    message.style.cssText = `
+        max-width: 600px;
+        margin: 20px auto;
+        padding: 20px;
+        background: rgba(255,193,7,0.2);
+        border: 2px solid #ffc107;
+        border-radius: 10px;
+        text-align: center;
+    `;
+    
+    message.innerHTML = `
+        <h3 style="color: #ffc107; margin-bottom: 15px;">⚡ Cookie Caricati con Successo!</h3>
+        <p style="color: rgba(255,255,255,0.9); margin-bottom: 15px; line-height: 1.6;">
+            I cookie sono stati processati e saranno attivi quando verrai reindirizzato a Ticketone.
+            Questo dovrebbe permetterti di <strong>bypassare la coda di attesa</strong>.
+        </p>
+        <p style="color: rgba(255,255,255,0.7); font-size: 14px; margin-bottom: 15px;">
+            Se il reindirizzamento automatico non funziona, clicca il pulsante qui sotto:
+        </p>
+        <button onclick="window.location.href='https://sport.ticketone.it'" 
+                style="background: #28a745; color: white; border: none; padding: 12px 24px; 
+                       border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold;">
+            🎫 Vai a Ticketone
+        </button>
+    `;
+    
+    container.appendChild(message);
+}
+
+// Aggiorna status
 function updateStatus(message, type = 'info') {
     console.log(`Status [${type}]: ${message}`);
     
-    // Trova o crea elemento status
     let statusEl = document.getElementById('status-message');
     if (!statusEl) {
         statusEl = document.createElement('div');
         statusEl.id = 'status-message';
-        statusEl.style.maxWidth = '600px';
-        statusEl.style.margin = '20px auto';
-        statusEl.style.padding = '15px';
-        statusEl.style.borderRadius = '8px';
-        statusEl.style.textAlign = 'center';
-        statusEl.style.fontWeight = 'bold';
+        statusEl.style.cssText = `
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 16px;
+        `;
         
         const container = document.querySelector('.container') || document.body;
-        container.appendChild(statusEl);
+        container.insertBefore(statusEl, container.firstChild);
     }
     
-    // Colori in base al tipo
     const colors = {
         'info': 'background: rgba(23, 162, 184, 0.2); color: #17a2b8; border: 1px solid #17a2b8;',
         'success': 'background: rgba(40, 167, 69, 0.2); color: #28a745; border: 1px solid #28a745;',
@@ -275,41 +261,110 @@ function updateStatus(message, type = 'info') {
     statusEl.textContent = message;
 }
 
-// Mostra istruzioni di base
+// Mostra istruzioni base
 function showInstructions() {
-    updateStatus('ℹ️ Per usare questa pagina, apri un link generato dall\'estensione Hungry Tickets', 'info');
+    const container = document.querySelector('.container') || document.body;
     
-    const instructions = `
+    container.innerHTML += `
         <div style="margin: 30px auto; max-width: 600px; text-align: left;">
-            <h3 style="color: #ffed4e;">📖 Come Funziona:</h3>
-            <ol style="color: rgba(255,255,255,0.9); line-height: 1.6;">
-                <li>Installa l'estensione Hungry Tickets</li>
-                <li>Vai su Ticketone e fai login</li>
-                <li>Usa l'estensione per generare un link</li>
-                <li>Apri il link generato (arriverai qui automaticamente)</li>
-                <li>I cookie verranno caricati automaticamente</li>
+            <h3 style="color: #ffed4e;">📖 Come Usare Hungry Tickets:</h3>
+            <ol style="color: rgba(255,255,255,0.9); line-height: 1.8; font-size: 14px;">
+                <li><strong>Installa l'estensione</strong> Hungry Tickets nel tuo browser</li>
+                <li><strong>Vai su Ticketone</strong> e fai login con il tuo account</li>
+                <li><strong>Naviga</strong> fino alla pagina dell'evento che ti interessa</li>
+                <li><strong>Aspetta la coda</strong> (se presente) per catturare i cookie giusti</li>
+                <li><strong>Apri l'estensione</strong> e clicca "Estrai Cookie"</li>
+                <li><strong>Copia il link</strong> generato e invialo a chi vuoi</li>
+                <li><strong>Chi riceve</strong> clicca il link e bypassa la coda!</li>
             </ol>
+            
+            <div style="margin-top: 20px; padding: 15px; background: rgba(23,162,184,0.1); border-radius: 8px; border-left: 4px solid #17a2b8;">
+                <h4 style="color: #17a2b8; margin-bottom: 8px;">💡 Suggerimenti:</h4>
+                <ul style="color: rgba(255,255,255,0.8); font-size: 13px; line-height: 1.6;">
+                    <li>Estrai i cookie quando sei <strong>in coda o dopo il login</strong></li>
+                    <li>I link micro funzionano <strong>su tutti i dispositivi</strong></li>
+                    <li>Condividi subito il link, alcuni cookie hanno <strong>durata limitata</strong></li>
+                    <li>Se non funziona, prova a <strong>rigenerare un nuovo link</strong></li>
+                </ul>
+            </div>
         </div>
     `;
-    
-    const container = document.querySelector('.container') || document.body;
-    container.innerHTML += instructions;
 }
 
 // Mostra istruzioni di fallback
 function showFallbackInstructions() {
-    const fallback = `
-        <div style="margin: 20px auto; max-width: 600px; padding: 15px; background: rgba(255,193,7,0.1); border: 1px solid #ffc107; border-radius: 8px;">
-            <h4 style="color: #ffc107;">🔧 Soluzioni Alternative:</h4>
-            <ul style="color: rgba(255,255,255,0.9); line-height: 1.6;">
-                <li><strong>Link scaduto:</strong> Rigenera un nuovo link dall'estensione</li>
-                <li><strong>Hash locale:</strong> Usa lo stesso browser dove hai generato il link</li>
-                <li><strong>Servizio esterno:</strong> Prova a rigenerare se il servizio è temporaneamente non disponibile</li>
-                <li><strong>Link danneggiato:</strong> Controlla che il link sia stato copiato completamente</li>
+    const container = document.querySelector('.container') || document.body;
+    
+    const fallback = document.createElement('div');
+    fallback.style.cssText = `
+        margin: 20px auto;
+        max-width: 600px;
+        padding: 20px;
+        background: rgba(220,53,69,0.1);
+        border: 2px solid #dc3545;
+        border-radius: 10px;
+    `;
+    
+    fallback.innerHTML = `
+        <h4 style="color: #dc3545; margin-bottom: 15px; text-align: center;">🔧 Link Non Funzionante</h4>
+        <p style="color: rgba(255,255,255,0.9); margin-bottom: 15px; text-align: center;">
+            Il link potrebbe essere danneggiato, scaduto o in formato non supportato.
+        </p>
+        
+        <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <h5 style="color: #ffc107; margin-bottom: 10px;">🛠️ Soluzioni:</h5>
+            <ul style="color: rgba(255,255,255,0.8); line-height: 1.6; font-size: 14px;">
+                <li><strong>Link troncato:</strong> Assicurati che il link sia stato copiato completamente</li>
+                <li><strong>Link scaduto:</strong> Chiedi di generare un nuovo link dall'estensione</li>
+                <li><strong>Formato obsoleto:</strong> Usa la versione più recente dell'estensione</li>
+                <li><strong>Browser incompatibile:</strong> Prova con Chrome, Firefox o Safari</li>
             </ul>
+        </div>
+        
+        <div style="text-align: center;">
+            <button onclick="window.location.reload()" 
+                    style="background: #17a2b8; color: white; border: none; padding: 10px 20px; 
+                           border-radius: 6px; cursor: pointer; margin-right: 10px;">
+                🔄 Riprova
+            </button>
+            <button onclick="window.location.href='https://sport.ticketone.it'" 
+                    style="background: #6c757d; color: white; border: none; padding: 10px 20px; 
+                           border-radius: 6px; cursor: pointer;">
+                🎫 Vai a Ticketone
+            </button>
         </div>
     `;
     
-    const container = document.querySelector('.container') || document.body;
-    container.innerHTML += fallback;
+    container.appendChild(fallback);
+}
+
+// Debug helper - mostra informazioni tecniche
+function showDebugInfo(error) {
+    if (window.location.search.includes('debug=1')) {
+        const container = document.querySelector('.container') || document.body;
+        
+        const debug = document.createElement('div');
+        debug.style.cssText = `
+            margin: 20px auto;
+            max-width: 600px;
+            padding: 15px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid #6c757d;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+        `;
+        
+        debug.innerHTML = `
+            <h5 style="color: #ffc107;">🐛 Debug Info:</h5>
+            <pre style="color: rgba(255,255,255,0.8); white-space: pre-wrap; margin: 0;">
+URL: ${window.location.href}
+Error: ${error ? error.message : 'N/A'}
+User Agent: ${navigator.userAgent}
+Timestamp: ${new Date().toISOString()}
+            </pre>
+        `;
+        
+        container.appendChild(debug);
+    }
 }
